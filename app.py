@@ -160,6 +160,8 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/healthz': return self.send_json({'status': 'ok'})
         if not self.authorized(): return
+        if self.path in ('/data/seed.json', '/data/reference.json'):
+            return self.send_json(json.loads((ROOT / self.path.lstrip('/')).read_text()))
         if self.path=='/api/data':
             with connect() as con:
                 rows=con.execute('SELECT day,source,jobs,buckets FROM snapshots ORDER BY day').fetchall()

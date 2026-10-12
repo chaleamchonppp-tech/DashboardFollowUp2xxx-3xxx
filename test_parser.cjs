@@ -1,0 +1,13 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');
+const p=require('./static/sap-parser.js');
+const headers=['Lv','ข้อกำหนดโครงการ /WBS','คำอธิบายภาษาไทย','งบประมาณปัจจุบัน','รวม Act.ทั้งหมดที่ควบคุม งปม.','งบประมาณคงเหลือ','สถานะ'];
+const row=[5,'I-69-B-ABC69.M4.2201','งาน', '1,200.50','700.25','500.25','C1'];
+function table(rows){return [{name:'SAP',rows:[headers,...rows]}];}
+test('CSV quotes, multiline descriptions, BOM and CRLF',()=>{assert.deepEqual(p.csvRows('\ufeffA,B\r\n"งาน,ทดสอบ","หนึ่ง\nสอง"\r\n'),[['A','B'],['งาน,ทดสอบ','หนึ่ง\nสอง']]);assert.throws(()=>p.csvRows('A\n"bad'));});
+test('leaf jobs, cents, parent exclusion and identical duplicate',()=>{const r=p.parseTables(table([[4,'I-69-B-ABC69.M4.2000','รวม',99999,0,0,'Z0'],row,row]));assert.equal(Object.keys(r.jobs).length,1);assert.equal(r.jobs[row[1]].budget,120050);assert.deepEqual(r.buckets,['2xxx']);assert.equal(r.warnings.length,1);});
+test('conflicting duplicate rejects the file',()=>{const changed=[...row];changed[6]='F4';assert.throws(()=>p.parseTables(table([row,changed])),/ขัดแย้ง/);});
+test('CSV zero and 0.00 are the same financial value',()=>{const a=[...row],b=[...row];a[5]='0';b[5]='0.00';const result=p.parseTables(table([a,b]));assert.equal(Object.keys(result.jobs).length,1);assert.equal(result.warnings.length,1);});
+test('required financial columns cannot silently become zero',()=>{assert.throws(()=>p.parseTables([{rows:[headers.filter(h=>h!=='งบประมาณคงเหลือ'),row]}]),/ขาดคอลัมน์/);});
+test('dates must be real calendar dates',()=>{assert.equal(p.validDay('2026-10-12'),'2026-10-12');assert.throws(()=>p.validDay('2026-02-30'));assert.throws(()=>p.validDay('bad'));});
+test('backup schema and canonical equality',()=>{const r=p.parseTables(table([row]));const s=p.validateSnapshot({day:'2026-10-12',source:'SAP.csv',...r});const other={...s,jobs:{[row[1]]:{...s.jobs[row[1]],budget:120050}}};assert.ok(p.sameSnapshot(s,other));other.jobs[row[1]].status='F4';assert.ok(!p.sameSnapshot(s,other));assert.throws(()=>p.validateBackup({version:1,snapshots:[s,s]}),/วันที่ซ้ำ/);assert.throws(()=>p.validateBackup({version:2,snapshots:[]}));});
+test('supplied reference budgets and historical backup stay compatible',()=>{const seed=JSON.parse(fs.readFileSync('data/seed.json'));const refs=JSON.parse(fs.readFileSync('data/reference.json'));const s=p.validateSnapshot(seed);const rows=Object.values(s.jobs).filter(j=>refs[j.wbs]);assert.equal(rows.length,334);assert.equal(rows.reduce((n,j)=>n+j.budget,0),10951809058);assert.equal(rows.reduce((n,j)=>n+j.actual,0),7882800890);assert.equal(p.validateBackup({version:1,snapshots:[seed]}).length,1);});
