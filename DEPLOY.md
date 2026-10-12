@@ -4,6 +4,10 @@
 
 ## Render
 
+มี `render.yaml` สำหรับสร้างบริการแบบ Blueprint พร้อม persistent disk 1 GB และ plan Starter (มีค่าใช้จ่าย) เปิด https://render.com/deploy?repo=https://github.com/chaleamchonppp-tech/DashboardFollowUp2xxx-3xxx แล้วเชื่อม GitHub ให้ Render อ่าน repository ได้ ตรวจราคาและตั้ง APP_USERNAME / APP_PASSWORD ในหน้าของ Render จากนั้นสร้างบริการ Blueprint นี้
+
+หากสร้างผ่าน Blueprint ไม่ต้องเพิ่ม disk หรือ environment variables เดิมซ้ำ ค่า secret ที่ `sync: false` ต้องกรอกผ่าน Render เอง ระบบจะไม่เปิดเซิร์ฟเวอร์ถ้ารหัสผ่านสั้นกว่า 12 ตัวอักษร
+
 1. เชื่อมบัญชี Render กับ repository นี้ แล้วสร้าง Web Service แบบ Docker ใช้ Dockerfile ที่ให้ไว้
 2. เลือก plan ที่รองรับ persistent disk (มีค่าใช้จ่ายตามบริการ) เพิ่ม disk mount path `/var/data` เพื่อรักษาประวัติหลัง deploy/restart
 3. ตั้ง environment variables ในหน้าบริการ:
