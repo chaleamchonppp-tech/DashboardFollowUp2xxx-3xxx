@@ -97,6 +97,41 @@ def save_snapshot(day, source, jobs, buckets):
             raise ValueError('มีข้อมูลวันที่นี้แล้ว กรุณาเลือกวันที่อื่น เพื่อรักษาประวัติเดิม')
         con.execute('INSERT INTO snapshots VALUES (?,?,?,?)',(day,source,json.dumps(jobs,ensure_ascii=False),json.dumps(buckets)))
 
+def restore_backup(payload):
+    if payload.get('version') != 1 or not isinstance(payload.get('snapshots'), list):
+        raise ValueError('ไฟล์สำรองไม่ถูกต้อง')
+    pending = []
+    days = set()
+    for snapshot in payload['snapshots']:
+        day = snapshot['day']; date.fromisoformat(day)
+        if day in days: raise ValueError('วันที่ซ้ำในไฟล์สำรอง')
+        days.add(day)
+        jobs = snapshot['jobs']; buckets = snapshot['buckets']
+        if not isinstance(jobs, dict) or not isinstance(buckets, list) or not set(buckets) <= {'2xxx','3xxx'}:
+            raise ValueError('โครงสร้างงานไม่ถูกต้อง')
+        for wbs, job in jobs.items():
+            match = PATTERN.search(wbs)
+            if not match or job['wbs'] != wbs or job['group'] != match[1] or job['bucket'] != match[2][0]+'xxx' or job['bucket'] not in buckets:
+                raise ValueError('WBS หรือกลุ่มงบไม่ถูกต้อง')
+            for key in ('name','year','status','sap'):
+                if not isinstance(job[key], str): raise ValueError('ข้อมูลข้อความไม่ถูกต้อง')
+            for key in ('budget','actual','remaining','material','expense'):
+                if type(job[key]) is not int: raise ValueError('จำนวนเงินในไฟล์สำรองไม่ถูกต้อง')
+        source = snapshot['source']
+        if not isinstance(source,str): raise ValueError('ชื่อไฟล์ไม่ถูกต้อง')
+        pending.append((day,source,jobs,buckets))
+    added = 0
+    with connect() as con:
+        for day,source,jobs,buckets in pending:
+            old = con.execute('SELECT jobs,buckets FROM snapshots WHERE day=?',(day,)).fetchone()
+            if old:
+                if json.loads(old[0]) != jobs or sorted(json.loads(old[1])) != sorted(buckets):
+                    raise ValueError(f'วันที่ {day} มีข้อมูลขัดแย้ง ระบบไม่เขียนทับประวัติ')
+                continue
+            con.execute('INSERT INTO snapshots VALUES (?,?,?,?)',(day,source,json.dumps(jobs,ensure_ascii=False),json.dumps(buckets)))
+            added += 1
+    return added
+
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self,*args,**kwargs): super().__init__(*args,directory=str(ROOT/'static'),**kwargs)
     def authorized(self):
@@ -132,11 +167,14 @@ class Handler(SimpleHTTPRequestHandler):
         return super().do_GET()
     def do_POST(self):
         if not self.authorized(): return
-        if self.path!='/api/import': return self.send_json({'error':'ไม่พบเส้นทาง'},404)
+        if self.path not in ('/api/import','/api/restore'): return self.send_json({'error':'ไม่พบเส้นทาง'},404)
         try:
             size=int(self.headers.get('Content-Length','0'))
             if size <= 0 or size>30_000_000: raise ValueError('ขนาดคำขอไม่ถูกต้อง หรือไฟล์ใหญ่เกิน 20 MB')
-            payload=json.loads(self.rfile.read(size)); content=base64.b64decode(payload['content'],validate=True)
+            payload=json.loads(self.rfile.read(size))
+            if self.path == '/api/restore':
+                return self.send_json({'count': restore_backup(payload)})
+            content=base64.b64decode(payload['content'],validate=True)
             jobs,buckets,warnings=parse_raw(payload['name'],content)
             save_snapshot(payload['day'],Path(payload['name']).name,jobs,buckets)
             self.send_json({'count':len(jobs),'buckets':buckets,'warnings':warnings})

@@ -10,6 +10,20 @@ HEADERS=['Lv','ข้อกำหนดโครงการ /WBS','คำอธ
 def raw(rows):
     out=io.StringIO();writer=csv.writer(out);writer.writerow(HEADERS);writer.writerows(rows);return out.getvalue().encode('utf-8-sig')
 class ImportTests(unittest.TestCase):
+    def test_restore_repeatable_and_conflict_rolls_back(self):
+        original=app.DB
+        with tempfile.TemporaryDirectory() as tmp:
+            app.DB=Path(tmp)/'restore.sqlite'
+            try:
+                jobs, buckets, _=app.parse_raw('a.csv',raw([[5,'I-69-B-ABC69.M4.2201','งาน',100,20,80,'C1']]))
+                one={'day':'2026-10-05','source':'a.csv','jobs':jobs,'buckets':buckets}
+                self.assertEqual(app.restore_backup({'version':1,'snapshots':[one]}),1)
+                self.assertEqual(app.restore_backup({'version':1,'snapshots':[one]}),0)
+                two={**one,'day':'2026-10-12'}
+                conflict=json.loads(json.dumps(one));conflict['jobs']['I-69-B-ABC69.M4.2201']['status']='F4'
+                with self.assertRaises(ValueError):app.restore_backup({'version':1,'snapshots':[two,conflict]})
+                with app.connect() as con:self.assertEqual(con.execute('SELECT COUNT(*) FROM snapshots').fetchone()[0],1)
+            finally:app.DB=original
     def test_leaf_budget_and_duplicate(self):
         row=[5,'I-69-B-ABC69.M4.2201','งาน','1,200.50','700.25','500.25','C1']
         jobs,buckets,warnings=app.parse_raw('SAP.csv',raw([[4,'I-69-B-ABC69.M4.2000','สรุป',999999,0,0,'Z0'],row,row]))

@@ -44,4 +44,4 @@ python3 -m unittest -v
 node --check static/app.js
 ```
 
-สำหรับเว็บไซต์ออนไลน์ มี HTTP Basic Authentication ผ่าน APP_USERNAME / APP_PASSWORD และบังคับใช้ด้วย REQUIRE_AUTH=1 (ค่าเริ่มต้นใน Docker) ต้องเปิดผ่าน HTTPS และใช้ disk ถาวร ยังไม่มีสิทธิ์แยกรายผู้ใช้ ดู [DEPLOY.md](DEPLOY.md) สำหรับ Render/VPS และการสำรองข้อมูล
+สำหรับเว็บไซต์ออนไลน์ มี HTTP Basic Authentication ผ่าน APP_USERNAME / APP_PASSWORD และบังคับใช้ด้วย REQUIRE_AUTH=1 (ค่าเริ่มต้นใน Docker) ต้องเปิดผ่าน HTTPS; Render ฟรีใช้สำรอง/กู้คืน JSON แทน disk ถาวร ยังไม่มีสิทธิ์แยกรายผู้ใช้ ดู [DEPLOY.md](DEPLOY.md) สำหรับ Render/VPS และการสำรองข้อมูล
