@@ -9,10 +9,6 @@ services:
     numInstances: 1
     envVars:
       - key: REQUIRE_AUTH
-        value: "1"
+        value: "0"
       - key: DASHBOARD_DB_PATH
         value: /app/data/dashboard.sqlite
-      - key: APP_USERNAME
-        sync: false
-      - key: APP_PASSWORD
-        sync: false

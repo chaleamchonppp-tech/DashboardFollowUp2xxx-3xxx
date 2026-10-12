@@ -4,10 +4,10 @@
 
 1. เปิด https://render.com/deploy?repo=https://github.com/chaleamchonppp-tech/DashboardFollowUp2xxx-3xxx
 2. เชื่อม GitHub ให้ Render อ่าน repository ได้ เลือกบริการ Free ตรวจว่าไม่มีรายการเสียเงิน
-3. ตั้ง `APP_USERNAME` และ `APP_PASSWORD` อย่างน้อย 12 ตัวอักษรใน Render ไม่ส่งรหัสผ่านในแชต
+3. ไม่ต้องตั้ง User/Password รุ่นนี้เปิดใช้งานโดยไม่ล็อกอิน
 4. สร้าง Blueprint แล้วเปิด URL HTTPS ที่ Render ให้
 
-มีค่า REQUIRE_AUTH=1, DASHBOARD_DB_PATH=/app/data/dashboard.sqlite และ health check /healthz ใน Blueprint แล้ว
+มีค่า REQUIRE_AUTH=0, DASHBOARD_DB_PATH=/app/data/dashboard.sqlite และ health check /healthz ใน Blueprint แล้ว หากสร้างบริการไว้ก่อนหน้านี้ ตั้ง REQUIRE_AUTH=0 ใน Environment แล้ว redeploy; APP_USERNAME/APP_PASSWORD เดิมจะไม่ถูกใช้เมื่อ REQUIRE_AUTH=0
 
 ## ประวัติบนแผนฟรี
 

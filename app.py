@@ -135,6 +135,7 @@ def restore_backup(payload):
 class Handler(SimpleHTTPRequestHandler):
     def __init__(self,*args,**kwargs): super().__init__(*args,directory=str(ROOT/'static'),**kwargs)
     def authorized(self):
+        if os.environ.get('REQUIRE_AUTH') == '0': return True
         user = os.environ.get('APP_USERNAME', '')
         password = os.environ.get('APP_PASSWORD', '')
         if not user and not password and os.environ.get('REQUIRE_AUTH') != '1': return True
